@@ -1,7 +1,7 @@
 # injectio
 > from Latin *injectio(n-)*, an instance of injecting or being injected
 
-An opinionated, minimalist, dependency-free but functional dependency injection (DI) and inversion of control (IoC) for TypeScript (and JavaScript)
+An opinionated, minimalist, dependency-free but functional dependency injection (DI) and inversion of control (IoC) for TypeScript.
 
 ## Installation
 ```npm install --save injectio```
