@@ -4,7 +4,7 @@ export interface BindContext {
 
 export type Constructable<T> = { new(...args: any[]): T; };
 export type Inheritable<T> = Constructable<T> | { prototype: T };
-export type ClassDecoratorFn = <T>(constructor: Constructable<T>) => void;
+export type ClassDecoratorFn<T> = (constructor: Constructable<T>) => void;
 export type FunctionDecoratorFn = (target: any, propertyKey: string) => void;
 export type FactoryFn<T> = (context?: BindContext) => T;
 
@@ -67,7 +67,6 @@ export class InstanceBinding<T> extends Binding<T> {
 }
 
 export class TypedBindingBuilder<T> {
-
     constructor(private readonly key: any) { }
 
     value(value: T): Binding<T> {
@@ -116,7 +115,7 @@ class BindingMap {
         const binding = this.map.get(key);
         if (binding === undefined) {
             const keyName = (typeof key === "string") ? key : (key as any).name;
-            throw new Error(`cannot resolve binding ${keyName} in context of class ${context.name}`);
+            throw new Error(`Cannot resolve binding ${keyName} in context of class ${context.name}`);
         }
         return binding.get(context);
     }
@@ -137,8 +136,22 @@ class InjectionMap {
     }
 }
 
-class Container {
+type Configurations = Map<string, any>;
+class ConfigurationMap {
+    private static map = new Map<Function, Configurations>();
 
+    static get(key: Function): Configurations {
+        const configurations = this.map.get(key) || new Map<string, string>();
+        this.map.set(key, configurations);
+        return configurations;
+    }
+}
+
+const InitializationMap = new Map<Function, string>();
+const ConfigurationValues = new Map<string, any>();
+
+
+class Container {
     static bind(key: string): UntypedBindingBuilder;
     static bind<T>(key: Inheritable<T>): TypedBindingBuilder<T>;
     static bind<T>(key: BindingKey<T>): TypedBindingBuilder<T> | UntypedBindingBuilder {
@@ -162,34 +175,72 @@ class Container {
     }
 
     static resolveInjections(instance: any, target: Function): any {
-        if (target) {
+        if (target && instance) {
+            const context = {
+                name: instance.constructor.name
+            };
+
             const injections = InjectionMap.get(target);
             for (const [key, value] of injections) {
-                const context = {
-                    name: instance.constructor.name
-                };
                 instance[key] = BindingMap.get(value as any, context);
             }
-            return this.resolveInjections(instance, Object.getPrototypeOf(target));
+
+            const configurations = ConfigurationMap.get(target);
+            for (const [instanceKey, configurationKey] of configurations) {
+                const configurationValue = ConfigurationValues.get(configurationKey);
+                if (configurationValue === undefined) {
+                    throw new Error(`Cannot resolve configuration key ${configurationKey} binded to attribute ${instanceKey} in context of class ${context.name}`);
+                }
+
+                instance[instanceKey] = configurationValue;
+            }
+
+            const newInstance = this.resolveInjections(instance, Object.getPrototypeOf(target));
+
+            const initializator = InitializationMap.get(target);
+            if (initializator !== undefined) {
+                const fn = newInstance[initializator] as Function;
+                if (fn !== undefined) {
+                    fn.call(newInstance);
+                }
+            }
+
+            return newInstance;
         } else {
             return instance;
         }
     }
+
+    static configure(key: string, value: any): void {
+        ConfigurationValues.set(key, value);
+    }
+}
+
+function Initializator(target: any, propertyKey: string, descriptor: PropertyDescriptor): void {
+    InitializationMap.set(target.constructor, propertyKey);
 }
 
 function Inject(name: string): FunctionDecoratorFn;
 function Inject(target: any, propertyKey: string): void;
 function Inject(target: any, propertyKey?: string): FunctionDecoratorFn | void {
     if (typeof target === "string") {
-        return (target2, propertyKey2) => InjectionMap.get(target2.constructor).set(propertyKey2, target);
+        return (target2, propertyKey2) => {
+            InjectionMap.get(target2.constructor).set(propertyKey2, target);
+        };
     } else {
         InjectionMap.get(target.constructor).set(propertyKey as string, Reflect.getMetadata("design:type", target, propertyKey as string));
     }
 }
 
+function Configuration(name: string): FunctionDecoratorFn {
+    return (target, propertyKey) => {
+        ConfigurationMap.get(target.constructor).set(propertyKey, name);
+    };
+}
+
 function Singleton<T>(constructor: Constructable<T>): void;
-function Singleton<T>(param1: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): ClassDecoratorFn;
-function Singleton<T>(param1?: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): void | ClassDecoratorFn {
+function Singleton<T>(param1: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): ClassDecoratorFn<T>;
+function Singleton<T>(param1?: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): void | ClassDecoratorFn<T> {
     if (param1 && typeof param1 === "function") {
         const constructor = param1 as Constructable<T>;
         Container.bind(constructor).singleton(constructor);
@@ -201,8 +252,8 @@ function Singleton<T>(param1?: any, param2?: any, param3?: any, param4?: any, pa
 }
 
 function Instance<T>(constructor: Constructable<T>): void;
-function Instance<T>(param1: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): ClassDecoratorFn;
-function Instance<T>(param1?: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): void | ClassDecoratorFn {
+function Instance<T>(param1: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): ClassDecoratorFn<T>;
+function Instance<T>(param1?: any, param2?: any, param3?: any, param4?: any, param5?: any, param6?: any, param7?: any, param8?: any, param9?: any): void | ClassDecoratorFn<T> {
     if (param1 && typeof param1 === "function") {
         const constructor = param1 as Constructable<T>;
         Container.bind(constructor).instance(constructor);
@@ -213,10 +264,31 @@ function Instance<T>(param1?: any, param2?: any, param3?: any, param4?: any, par
     }
 }
 
-function Factory<T>(fn: FactoryFn<T>): ClassDecoratorFn {
+function Factory<T>(fn: FactoryFn<T>): ClassDecoratorFn<T> {
     return <T>(constructor: Constructable<T>) => {
         Container.bind(constructor).factory(fn);
+    };
+}
 
+function Bind<T, T2 extends T>(bindConstructor: Inheritable<T>): {
+    Singleton: ClassDecoratorFn<T2>,
+    Instance: ClassDecoratorFn<T2>,
+    Factory: (fn: FactoryFn<T2>) => ClassDecoratorFn<T2>
+} {
+    return {
+        Singleton: (constructor: Constructable<T2>) => {
+            Container.bind(bindConstructor).singleton(constructor);
+        },
+
+        Instance: (constructor: Constructable<T2>) => {
+            Container.bind(bindConstructor).instance(constructor);
+        },
+
+        Factory: (fn: FactoryFn<T2>) => {
+            return (constructor: Constructable<T2>) => {
+                Container.bind(bindConstructor).instance(constructor);
+            };
+        }
     };
 }
 
@@ -230,7 +302,6 @@ function AutoWire<T>(constructor: any): any {
 
     newClass.__autowired = constructor;
     return newClass;
-
 }
 
-export { Container, Inject, Singleton, Instance, AutoWire, Factory };
+export { Container, Inject, Singleton, Instance, AutoWire, Factory, Bind, Initializator, Configuration };

@@ -1,7 +1,7 @@
 {
     "name": "injectio",
-    "version": "0.0.1",
-    "description": "A minimalist, dependency-free but functional dependency injection (DI) and inversion of control (IOC) for TypeScript (and JavaScript)",
+    "version": "0.0.2",
+    "description": "An opinionated, minimalist, dependency-free but functional dependency injection (DI) and inversion of control (IoC) for TypeScript",
     "main": "dist/lib/index.js",
     "types": "dist/lib/index.d.ts",
     "scripts": {
@@ -29,8 +29,9 @@
     },
     "homepage": "https://github.com/arturoarevalo/injectio#readme",
     "devDependencies": {
+        "@types/node": "^10.5.2",
         "reflect-metadata": "^0.1.12",
-        "tslint": "^5.10.0",
+        "tslint": "^5.11.0",
         "typescript": "^2.9.2"
     }
 }
