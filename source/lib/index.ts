@@ -220,7 +220,7 @@ function Initializator(target: any, propertyKey: string, descriptor: PropertyDes
     InitializationMap.set(target.constructor, propertyKey);
 }
 
-function Inject(name: string): FunctionDecoratorFn;
+function Inject(name: string | symbol): FunctionDecoratorFn;
 function Inject(target: any, propertyKey: string): void;
 function Inject(target: any, propertyKey?: string): FunctionDecoratorFn | void {
     if (typeof target === "string") {
