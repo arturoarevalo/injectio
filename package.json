@@ -1,6 +1,6 @@
 {
     "name": "injectio",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "An opinionated, minimalist, dependency-free but functional dependency injection (DI) and inversion of control (IoC) for TypeScript",
     "main": "dist/lib/index.js",
     "types": "dist/lib/index.d.ts",
