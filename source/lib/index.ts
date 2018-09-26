@@ -223,9 +223,9 @@ function Initializator(target: any, propertyKey: string, descriptor: PropertyDes
 function Inject(name: string | symbol): FunctionDecoratorFn;
 function Inject(target: any, propertyKey: string): void;
 function Inject(target: any, propertyKey?: string): FunctionDecoratorFn | void {
-    if (typeof target === "string") {
+    if (typeof target === "string" || typeof target === "symbol") {
         return (target2, propertyKey2) => {
-            InjectionMap.get(target2.constructor).set(propertyKey2, target);
+            InjectionMap.get(target2.constructor).set(propertyKey2, target as any);
         };
     } else {
         InjectionMap.get(target.constructor).set(propertyKey as string, Reflect.getMetadata("design:type", target, propertyKey as string));
