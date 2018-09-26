@@ -152,9 +152,9 @@ const ConfigurationValues = new Map<string, any>();
 
 
 class Container {
-    static bind(key: string): UntypedBindingBuilder;
+    static bind(key: string | symbol): UntypedBindingBuilder;
     static bind<T>(key: Inheritable<T>): TypedBindingBuilder<T>;
-    static bind<T>(key: BindingKey<T>): TypedBindingBuilder<T> | UntypedBindingBuilder {
+    static bind<T>(key: BindingKey<T> | symbol): TypedBindingBuilder<T> | UntypedBindingBuilder {
         if (typeof key === "string") {
             return new UntypedBindingBuilder(key);
         } else {
