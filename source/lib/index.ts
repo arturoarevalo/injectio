@@ -1,3 +1,22 @@
+
+interface InjectioGlobals {
+    InitializationMap: Map<Function, string>;
+    ConfigurationValues: Map<string, any>;
+    BindingMap: Map<any, Binding<any>>;
+    InjectionMap: Map<Function, Injections>;
+    ConfigurationMap: Map<Function, Configurations>;
+}
+
+(global as any).injectioGlobals = (global as any).injectioGlobals || {
+    InitializationMap: new Map<Function, string>(),
+    ConfigurationValues: new Map<string, any>(),
+    BindingMap: new Map<any, Binding<any>>(),
+    InjectionMap: new Map<Function, Injections>(),
+    ConfigurationMap: new Map<Function, Configurations>()
+};
+
+const Global = (global as any).injectioGlobals as InjectioGlobals;
+
 export interface BindContext {
     name: string;
 }
@@ -107,12 +126,10 @@ export class UntypedBindingBuilder {
 }
 
 class BindingMap {
-    private static map = new Map<any, Binding<any>>();
-
     static get(key: string, context: BindContext): any;
     static get<T>(key: Inheritable<T>, context: BindContext): T;
     static get<T>(key: BindingKey<T>, context: BindContext): any {
-        const binding = this.map.get(key);
+        const binding = Global.BindingMap.get(key);
         if (binding === undefined) {
             const keyName = (typeof key === "string") ? key : (key as any).name;
             throw new Error(`Cannot resolve binding ${keyName} in context of class ${context.name}`);
@@ -121,35 +138,27 @@ class BindingMap {
     }
 
     static set(key: any, value: any): void {
-        this.map.set(key, value);
+        Global.BindingMap.set(key, value);
     }
 }
 
 type Injections = Map<string, BindingKey<any>>;
 class InjectionMap {
-    private static map = new Map<Function, Injections>();
-
     static get(key: Function): Injections {
-        const injections = this.map.get(key) || new Map<string, Constructable<any>>();
-        this.map.set(key, injections);
+        const injections = Global.InjectionMap.get(key) || new Map<string, Constructable<any>>();
+        Global.InjectionMap.set(key, injections);
         return injections;
     }
 }
 
 type Configurations = Map<string, any>;
 class ConfigurationMap {
-    private static map = new Map<Function, Configurations>();
-
     static get(key: Function): Configurations {
-        const configurations = this.map.get(key) || new Map<string, string>();
-        this.map.set(key, configurations);
+        const configurations = Global.ConfigurationMap.get(key) || new Map<string, string>();
+        Global.ConfigurationMap.set(key, configurations);
         return configurations;
     }
 }
-
-const InitializationMap = new Map<Function, string>();
-const ConfigurationValues = new Map<string, any>();
-
 
 class Container {
     static bind(key: string | symbol): UntypedBindingBuilder;
@@ -187,7 +196,7 @@ class Container {
 
             const configurations = ConfigurationMap.get(target);
             for (const [instanceKey, configurationKey] of configurations) {
-                const configurationValue = ConfigurationValues.get(configurationKey);
+                const configurationValue = Global.ConfigurationValues.get(configurationKey);
                 if (configurationValue === undefined) {
                     throw new Error(`Cannot resolve configuration key ${configurationKey} binded to attribute ${instanceKey} in context of class ${context.name}`);
                 }
@@ -197,7 +206,7 @@ class Container {
 
             const newInstance = this.resolveInjections(instance, Object.getPrototypeOf(target));
 
-            const initializator = InitializationMap.get(target);
+            const initializator = Global.InitializationMap.get(target);
             if (initializator !== undefined) {
                 const fn = newInstance[initializator] as Function;
                 if (fn !== undefined) {
@@ -212,12 +221,12 @@ class Container {
     }
 
     static configure(key: string, value: any): void {
-        ConfigurationValues.set(key, value);
+        Global.ConfigurationValues.set(key, value);
     }
 }
 
 function Initializator(target: any, propertyKey: string, descriptor: PropertyDescriptor): void {
-    InitializationMap.set(target.constructor, propertyKey);
+    Global.InitializationMap.set(target.constructor, propertyKey);
 }
 
 function Inject(name: string | symbol): FunctionDecoratorFn;
